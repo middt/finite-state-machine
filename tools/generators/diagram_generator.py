@@ -10,6 +10,14 @@ class DiagramGenerator:
         self.states = {state["stateId"]: state for state in json_data["states"]}
         self.transitions = json_data["transitions"]
 
+    def get_transition_label(self, transition):
+        if 'name' in transition:
+            return transition['name']
+        elif 'event' in transition and transition['event'] and len(transition['event']) > 0:
+            return transition['event'][0]['name']
+        else:
+            return transition['transitionId']
+
     def generate_state_diagram(self) -> str:
         """Generate a Mermaid state diagram."""
         mermaid = ["stateDiagram-v2"]
@@ -17,7 +25,7 @@ class DiagramGenerator:
         # Add states
         for state in self.data["states"]:
             state_id = state["stateId"]
-            state_name = state["name"]
+            state_name = state.get('name', state_id)
             state_type = state["baseStateType"]
             
             # Add state with description
@@ -33,56 +41,48 @@ class DiagramGenerator:
         for transition in self.transitions:
             from_state = transition["fromStateId"]
             to_state = transition["toStateId"]
+            label = self.get_transition_label(transition)
             
             # Handle array of from states
             if isinstance(from_state, list):
                 for state in from_state:
-                    mermaid.append(f"    {state} --> {to_state}: {transition['event'][0]['name']}")
+                    mermaid.append(f"    {state} --> {to_state}: {label}")
             else:
-                mermaid.append(f"    {from_state} --> {to_state}: {transition['event'][0]['name']}")
+                mermaid.append(f"    {from_state} --> {to_state}: {label}")
 
         return "\n".join(mermaid)
 
     def generate_sequence_diagram(self) -> str:
         """Generate a Mermaid sequence diagram."""
         mermaid = ["sequenceDiagram"]
-        mermaid.append("    participant C as Client")
-        mermaid.append("    participant SM as State Machine")
+        mermaid.append("    participant User")
+        mermaid.append("    participant System")
         
-        # Add all unique webhook endpoints as participants
-        webhooks = set()
-        for state in self.data["states"]:
-            for action in state.get("entryActions", []):
-                if "webhook" in action.get("trigger", {}):
-                    webhook_url = action["trigger"]["webhook"]["url"]
-                    webhooks.add(webhook_url)
+        current_state = None
         
-        for webhook in sorted(webhooks):
-            service_name = webhook.split("/")[-1].capitalize()
-            mermaid.append(f"    participant {service_name} as {service_name} Service")
-        
-        # Add state transitions and webhook calls
         for transition in self.transitions:
-            from_state = transition["fromStateId"]
-            to_state = transition["toStateId"]
-            event_name = transition["event"][0]["name"]
+            from_state = transition['fromStateId']
+            to_state = transition['toStateId']
+            label = self.get_transition_label(transition)
             
-            # Add transition event
-            mermaid.append(f"    C->>+SM: {event_name}")
-            mermaid.append(f"    SM->>SM: Transition from {from_state} to {to_state}")
+            if current_state != from_state:
+                mermaid.append(f"    Note over User,System: State: {from_state}")
+                current_state = from_state
             
-            # Add webhook calls for the target state
-            if isinstance(to_state, str):  # Handle single state
-                target_state = self.states[to_state]
-                for action in target_state.get("entryActions", []):
-                    if "webhook" in action.get("trigger", {}):
-                        webhook = action["trigger"]["webhook"]
-                        service_name = webhook["url"].split("/")[-1].capitalize()
-                        mermaid.append(f"    SM->>+{service_name}: {webhook['method']} {webhook['url']}")
-                        mermaid.append(f"    {service_name}-->>-SM: Response")
-            
-            mermaid.append(f"    SM-->>-C: State updated to {to_state}")
-            mermaid.append("")  # Add spacing between transitions
+            # Handle user-triggered transitions
+            if 'trigger' in transition.get('event', [{}])[0] and transition['event'][0]['trigger'] == 'manual':
+                mermaid.append(f"    User->>+System: {label}")
+                if 'entryActions' in next((s for s in self.data["states"] if s['stateId'] == to_state), {}):
+                    mermaid.append(f"    System->>System: Execute {to_state} actions")
+                mermaid.append(f"    System-->>-User: State updated to {to_state}")
+            # Handle system-triggered transitions
+            else:
+                mermaid.append(f"    activate System")
+                mermaid.append(f"    System->>System: {label}")
+                if 'entryActions' in next((s for s in self.data["states"] if s['stateId'] == to_state), {}):
+                    mermaid.append(f"    System->>System: Execute {to_state} actions")
+                mermaid.append(f"    System-->>User: State updated to {to_state}")
+                mermaid.append(f"    deactivate System")
 
         return "\n".join(mermaid)
 

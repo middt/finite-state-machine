@@ -1,35 +1,39 @@
 # Sequence Diagram
 ```mermaid
 sequenceDiagram
-    participant C as Client
-    participant SM as State Machine
-    participant Complete as Complete Service
-    participant Error as Error Service
-    participant Initialize as Initialize Service
-    participant Process as Process Service
-    participant Verify as Verify Service
-    C->>+SM: Start Transfer
-    SM->>SM: Transition from init to verify
-    SM->>+Verify: POST http://example.com/verify
-    Verify-->>-SM: Response
-    SM-->>-C: State updated to verify
-
-    C->>+SM: Verification Complete
-    SM->>SM: Transition from verify to process
-    SM->>+Process: POST http://example.com/process
-    Process-->>-SM: Response
-    SM-->>-C: State updated to process
-
-    C->>+SM: Processing Complete
-    SM->>SM: Transition from process to complete
-    SM->>+Complete: POST http://example.com/complete
-    Complete-->>-SM: Response
-    SM-->>-C: State updated to complete
-
-    C->>+SM: Error Occurred
-    SM->>SM: Transition from ['init', 'verify', 'process'] to error
-    SM->>+Error: POST http://example.com/error
-    Error-->>-SM: Response
-    SM-->>-C: State updated to error
-
+    participant User
+    participant System
+    Note over User,System: State: init
+    User->>+System: Start Transfer
+    System->>System: Execute verify actions
+    System-->>-User: State updated to verify
+    Note over User,System: State: verify
+    activate System
+    System->>System: Verification Complete
+    System->>System: Execute confirm actions
+    System-->>User: State updated to confirm
+    deactivate System
+    Note over User,System: State: confirm
+    activate System
+    System->>System: User Confirmed
+    System->>System: Execute process actions
+    System-->>User: State updated to process
+    deactivate System
+    activate System
+    System->>System: User Rejected
+    System->>System: Execute error actions
+    System-->>User: State updated to error
+    deactivate System
+    Note over User,System: State: verify
+    User->>+System: Verification Failed
+    System->>System: Execute verification_failed actions
+    System-->>-User: State updated to verification_failed
+    Note over User,System: State: process
+    User->>+System: Processing Complete
+    System->>System: Execute complete actions
+    System-->>-User: State updated to complete
+    Note over User,System: State: ['init', 'verify', 'process']
+    User->>+System: Error Occurred
+    System->>System: Execute error actions
+    System-->>-User: State updated to error
 ```

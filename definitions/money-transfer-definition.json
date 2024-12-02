@@ -78,7 +78,7 @@
       "stateId": "verify",
       "name": "Verification",
       "description": "Verify transfer details and check balance.",
-      "baseStateType": "intermediate",
+      "baseStateType": "task",
       "stateType": "verification",
       "data": {
         "schema": {
@@ -137,6 +137,61 @@
       ]
     },
     {
+      "stateId": "confirm",
+      "name": "User Confirmation",
+      "description": "Wait for user confirmation of the transfer.",
+      "baseStateType": "userTask",
+      "stateType": "confirmation",
+      "data": {
+        "schema": {
+          "$schema": "http://json-schema.org/draft-07/schema#",
+          "type": "object",
+          "properties": {
+            "transferId": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "userConfirmed": {
+              "type": "boolean",
+              "description": "User's confirmation status"
+            },
+            "confirmationTimestamp": {
+              "type": "string",
+              "format": "date-time"
+            },
+            "userId": {
+              "type": "string",
+              "description": "ID of the user confirming the transfer"
+            }
+          },
+          "required": ["transferId", "userConfirmed", "confirmationTimestamp", "userId"],
+          "additionalProperties": false
+        }
+      },
+      "entryActions": [
+        {
+          "actionId": "sendConfirmationRequest",
+          "name": "Send Confirmation Request",
+          "type": "notification",
+          "config": {
+            "channel": "email",
+            "template": "transfer-confirmation"
+          }
+        }
+      ],
+      "exitActions": [
+        {
+          "actionId": "logConfirmation",
+          "name": "Log User Confirmation",
+          "type": "audit",
+          "config": {
+            "level": "info",
+            "category": "user-action"
+          }
+        }
+      ]
+    },
+    {
       "stateId": "process",
       "name": "Processing",
       "description": "Process the transfer and update account balances.",
@@ -181,6 +236,53 @@
           "retryCount": 0,
           "timeout": "PT1M",
           "onTimeout": "abort"
+        }
+      ]
+    },
+    {
+      "stateId": "verification_failed",
+      "name": "Verification Failed",
+      "description": "Transfer verification has failed.",
+      "baseStateType": "error",
+      "stateType": "error",
+      "data": {
+        "schema": {
+          "type": "object",
+          "properties": {
+            "errorCode": {
+              "type": "string",
+              "description": "Error code for the verification failure"
+            },
+            "errorMessage": {
+              "type": "string",
+              "description": "Detailed error message"
+            },
+            "failureTimestamp": {
+              "type": "string",
+              "format": "date-time",
+              "description": "Time when verification failed"
+            }
+          },
+          "required": ["errorCode", "errorMessage", "failureTimestamp"],
+          "additionalProperties": false
+        }
+      },
+      "entryActions": [
+        {
+          "actionId": "notifyFailure",
+          "name": "Notify Verification Failure",
+          "description": "Notify relevant parties about the verification failure",
+          "trigger": {
+            "webhook": {
+              "url": "http://example.com/notify-failure",
+              "method": "POST",
+              "payload": {
+                "transferId": "$data.transferId",
+                "errorCode": "$data.errorCode",
+                "errorMessage": "$data.errorMessage"
+              }
+            }
+          }
         }
       ]
     },
@@ -296,18 +398,39 @@
       "condition": "true"
     },
     {
-      "transitionId": "verifyToProcess",
+      "transitionId": "verifyToConfirm",
       "fromStateId": "verify",
+      "toStateId": "confirm",
+      "name": "Verification Complete",
+      "condition": "data.amount > 0"
+    },
+    {
+      "transitionId": "confirmToProcess",
+      "fromStateId": "confirm",
       "toStateId": "process",
+      "name": "User Confirmed",
+      "condition": "data.userConfirmed === true"
+    },
+    {
+      "transitionId": "confirmToError",
+      "fromStateId": "confirm",
+      "toStateId": "error",
+      "name": "User Rejected",
+      "condition": "data.userConfirmed === false"
+    },
+    {
+      "transitionId": "verifyToFailed",
+      "fromStateId": "verify",
+      "toStateId": "verification_failed",
       "event": [
         {
-          "eventId": "verificationComplete",
-          "name": "Verification Complete",
-          "description": "Trigger when verification is complete and successful.",
+          "eventId": "verificationFailed",
+          "name": "Verification Failed",
+          "description": "Trigger when verification fails.",
           "trigger": "manual"
         }
       ],
-      "condition": "data.amount > 0"
+      "condition": "data.verificationStatus === 'failed'"
     },
     {
       "transitionId": "processToComplete",

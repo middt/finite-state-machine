@@ -1,3 +1,5 @@
 typing
 argparse
 graphviz
+bpmn-python
+xmltodict

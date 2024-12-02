@@ -1,0 +1,158 @@
+{
+  "stateMachineId": "moneyTransferSM",
+  "name": "Converted from BPMN",
+  "description": "Converted from BPMN format",
+  "version": 1,
+  "states": [
+    {
+      "stateId": "init",
+      "name": "Initialization",
+      "description": "Initial state to start the money transfer.",
+      "baseStateType": "initial",
+      "stateType": "process",
+      "data": {
+        "schema": {
+          "type": "object",
+          "properties": {}
+        }
+      }
+    },
+    {
+      "stateId": "complete",
+      "name": "Completion",
+      "description": "Final state to complete the transfer.",
+      "baseStateType": "final",
+      "stateType": "process",
+      "data": {
+        "schema": {
+          "type": "object",
+          "properties": {}
+        }
+      }
+    },
+    {
+      "stateId": "error",
+      "name": "Error",
+      "description": "Handles any errors that occur during the transfer process.",
+      "baseStateType": "final",
+      "stateType": "process",
+      "data": {
+        "schema": {
+          "type": "object",
+          "properties": {}
+        }
+      }
+    },
+    {
+      "stateId": "process",
+      "name": "Processing",
+      "description": "Process the transfer and update account balances.",
+      "baseStateType": "intermediate",
+      "stateType": "process",
+      "data": {
+        "schema": {
+          "type": "object",
+          "properties": {}
+        }
+      }
+    },
+    {
+      "stateId": "verification_failed",
+      "name": "Verification Failed",
+      "description": "Transfer verification has failed.",
+      "baseStateType": "error",
+      "stateType": "process",
+      "data": {
+        "schema": {
+          "type": "object",
+          "properties": {}
+        }
+      }
+    },
+    {
+      "stateId": "verify",
+      "name": "Verification",
+      "description": "Verify transfer details and check balance.",
+      "baseStateType": "decision",
+      "stateType": "decision",
+      "data": {
+        "schema": {
+          "type": "object",
+          "properties": {}
+        }
+      }
+    }
+  ],
+  "transitions": [
+    {
+      "transitionId": "initToVerify",
+      "fromStateId": "init",
+      "toStateId": "verify",
+      "event": [
+        {
+          "eventId": "evt_initToVerify",
+          "name": "Start Transfer",
+          "description": "",
+          "trigger": "auto"
+        }
+      ],
+      "condition": "true"
+    },
+    {
+      "transitionId": "verifyToProcess",
+      "fromStateId": "verify",
+      "toStateId": "process",
+      "event": [
+        {
+          "eventId": "evt_verifyToProcess",
+          "name": "Verification Complete",
+          "description": "",
+          "trigger": "auto"
+        }
+      ],
+      "condition": "data.amount > 0"
+    },
+    {
+      "transitionId": "verifyToFailed",
+      "fromStateId": "verify",
+      "toStateId": "verification_failed",
+      "event": [
+        {
+          "eventId": "evt_verifyToFailed",
+          "name": "Verification Failed",
+          "description": "",
+          "trigger": "auto"
+        }
+      ],
+      "condition": "data.verificationStatus === 'failed'"
+    },
+    {
+      "transitionId": "processToComplete",
+      "fromStateId": "process",
+      "toStateId": "complete",
+      "event": [
+        {
+          "eventId": "evt_processToComplete",
+          "name": "Processing Complete",
+          "description": "",
+          "trigger": "auto"
+        }
+      ],
+      "condition": "true"
+    },
+    {
+      "transitionId": "anyToError",
+      "fromStateId": "['init', 'verify', 'process']",
+      "toStateId": "error",
+      "event": [
+        {
+          "eventId": "evt_anyToError",
+          "name": "Error Occurred",
+          "description": "",
+          "trigger": "auto"
+        }
+      ],
+      "condition": "true"
+    }
+  ]
+}
