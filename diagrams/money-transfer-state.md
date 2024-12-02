@@ -6,6 +6,7 @@ stateDiagram-v2
     verify: Verification
     confirm: User Confirmation
     process: Processing
+    verification_failed --> [*]
     verification_failed: Verification Failed
     complete --> [*]
     complete: Completion

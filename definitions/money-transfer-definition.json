@@ -243,7 +243,7 @@
       "stateId": "verification_failed",
       "name": "Verification Failed",
       "description": "Transfer verification has failed.",
-      "baseStateType": "error",
+      "baseStateType": "final",
       "stateType": "error",
       "data": {
         "schema": {
