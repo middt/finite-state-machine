@@ -1,0 +1,12 @@
+{
+  "stateId": "verify",
+  "instanceId": "mt-123e4567-e89b-12d3-a456-426614174000",
+  "enteredAt": "2024-01-10T14:30:05Z",
+  "data": {
+    "transferId": "tr-123e4567-e89b-12d3-a456-426614174000",
+    "amount": 1000.00,
+    "sourceAccount": "ACC001",
+    "destinationAccount": "ACC002",
+    "verificationStatus": "pending"
+  }
+}

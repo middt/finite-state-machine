@@ -1,0 +1,23 @@
+{
+  "stateId": "init",
+  "instanceId": "mt-123e4567-e89b-12d3-a456-426614174000",
+  "enteredAt": "2024-01-10T14:30:00Z",
+  "exitedAt": "2024-01-10T14:30:05Z",
+  "data": {
+    "transferId": "tr-123e4567-e89b-12d3-a456-426614174000",
+    "timestamp": "2024-01-10T14:30:00Z",
+    "clientReference": "CLIENT-REF-001"
+  },
+  "actions": [
+    {
+      "actionId": "initAction",
+      "startedAt": "2024-01-10T14:30:01Z",
+      "completedAt": "2024-01-10T14:30:03Z",
+      "status": "completed",
+      "result": {
+        "success": true,
+        "reference": "INIT-001"
+      }
+    }
+  ]
+}
