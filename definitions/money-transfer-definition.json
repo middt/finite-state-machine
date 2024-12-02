@@ -1,0 +1,341 @@
+{
+  "stateMachineId": "moneyTransferSM",
+  "name": "Money Transfer State Machine",
+  "description": "Handles the process of transferring money between accounts.",
+  "version": 1,
+  "globalCallbackHandler": {
+    "webhook": {
+      "url": "http://example.com/global-callback",
+      "method": "POST",
+      "expectedResponse": "200 OK"
+    }
+  },
+  "globalErrorHandler": {
+    "onError": "retry",
+    "onTimeout": "notify"
+  },
+  "states": [
+    {
+      "stateId": "init",
+      "name": "Initialization",
+      "description": "Initial state to start the money transfer.",
+      "baseStateType": "initial",
+      "stateType": "setup",
+      "data": {
+        "schema": {
+          "$schema": "http://json-schema.org/draft-07/schema#",
+          "type": "object",
+          "properties": {
+            "transferId": {
+              "type": "string",
+              "format": "uuid",
+              "description": "Unique identifier for the transfer"
+            },
+            "timestamp": {
+              "type": "string",
+              "format": "date-time",
+              "description": "Time when the transfer was initiated"
+            },
+            "clientReference": {
+              "type": "string",
+              "description": "Client's reference number"
+            }
+          },
+          "required": ["transferId", "timestamp"],
+          "additionalProperties": false
+        }
+      },
+      "entryActions": [
+        {
+          "actionId": "initAction",
+          "name": "Initialize Transfer",
+          "description": "Set up the initial transfer details.",
+          "trigger": {
+            "webhook": {
+              "url": "http://example.com/initialize",
+              "method": "POST",
+              "payload": {
+                "transferId": "$data.transferId",
+                "status": "initialized"
+              }
+            }
+          },
+          "callback": {
+            "webhook": {
+              "url": "http://example.com/initialize/callback",
+              "method": "POST",
+              "expectedResponse": "200 OK"
+            }
+          },
+          "retryCount": 3,
+          "retryDelay": "PT10S",
+          "timeout": "PT1M",
+          "onTimeout": "retry"
+        }
+      ]
+    },
+    {
+      "stateId": "verify",
+      "name": "Verification",
+      "description": "Verify transfer details and check balance.",
+      "baseStateType": "intermediate",
+      "stateType": "verification",
+      "data": {
+        "schema": {
+          "$schema": "http://json-schema.org/draft-07/schema#",
+          "type": "object",
+          "properties": {
+            "transferId": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "amount": {
+              "type": "number",
+              "minimum": 0.01,
+              "description": "Transfer amount"
+            },
+            "currency": {
+              "type": "string",
+              "enum": ["USD", "EUR", "GBP"],
+              "description": "Transfer currency"
+            },
+            "sourceAccount": {
+              "type": "string",
+              "pattern": "^[A-Z0-9]{8,}$",
+              "description": "Source account number"
+            },
+            "destinationAccount": {
+              "type": "string",
+              "pattern": "^[A-Z0-9]{8,}$",
+              "description": "Destination account number"
+            }
+          },
+          "required": ["transferId", "amount", "currency", "sourceAccount", "destinationAccount"],
+          "additionalProperties": false
+        }
+      },
+      "entryActions": [
+        {
+          "actionId": "verifyAction",
+          "name": "Verify Transfer",
+          "description": "Check if the transfer details are valid and if the source account has sufficient funds.",
+          "trigger": {
+            "webhook": {
+              "url": "http://example.com/verify",
+              "method": "POST",
+              "payload": {
+                "transferId": "$data.transferId",
+                "status": "verified"
+              }
+            }
+          },
+          "retryCount": 3,
+          "retryDelay": "PT5S",
+          "timeout": "PT30S",
+          "onTimeout": "abort"
+        }
+      ]
+    },
+    {
+      "stateId": "process",
+      "name": "Processing",
+      "description": "Process the transfer and update account balances.",
+      "baseStateType": "intermediate",
+      "stateType": "processing",
+      "data": {
+        "schema": {
+          "$schema": "http://json-schema.org/draft-07/schema#",
+          "type": "object",
+          "properties": {
+            "transferId": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "transactionReference": {
+              "type": "string"
+            },
+            "processingTimestamp": {
+              "type": "string",
+              "format": "date-time"
+            }
+          },
+          "required": ["transferId", "transactionReference"],
+          "additionalProperties": false
+        }
+      },
+      "entryActions": [
+        {
+          "actionId": "processAction",
+          "name": "Process Transfer",
+          "description": "Transfer funds from the source account to the destination account.",
+          "trigger": {
+            "webhook": {
+              "url": "http://example.com/process",
+              "method": "POST",
+              "payload": {
+                "transferId": "$data.transferId",
+                "status": "processed"
+              }
+            }
+          },
+          "retryCount": 0,
+          "timeout": "PT1M",
+          "onTimeout": "abort"
+        }
+      ]
+    },
+    {
+      "stateId": "complete",
+      "name": "Completion",
+      "description": "Final state to complete the transfer.",
+      "baseStateType": "final",
+      "stateType": "completion",
+      "data": {
+        "schema": {
+          "$schema": "http://json-schema.org/draft-07/schema#",
+          "type": "object",
+          "properties": {
+            "transferId": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "completionTimestamp": {
+              "type": "string",
+              "format": "date-time"
+            },
+            "status": {
+              "type": "string",
+              "enum": ["success", "partial"]
+            }
+          },
+          "required": ["transferId", "status"],
+          "additionalProperties": false
+        }
+      },
+      "entryActions": [
+        {
+          "actionId": "completeAction",
+          "name": "Complete Transfer",
+          "description": "Finalize the transfer and notify the user.",
+          "trigger": {
+            "webhook": {
+              "url": "http://example.com/complete",
+              "method": "POST",
+              "payload": {
+                "transferId": "$data.transferId",
+                "status": "completed"
+              }
+            }
+          }
+        }
+      ]
+    },
+    {
+      "stateId": "error",
+      "name": "Error",
+      "description": "Handles any errors that occur during the transfer process.",
+      "baseStateType": "final",
+      "stateType": "error",
+      "data": {
+        "schema": {
+          "$schema": "http://json-schema.org/draft-07/schema#",
+          "type": "object",
+          "properties": {
+            "transferId": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "errorCode": {
+              "type": "string"
+            },
+            "errorMessage": {
+              "type": "string"
+            },
+            "errorTimestamp": {
+              "type": "string",
+              "format": "date-time"
+            }
+          },
+          "required": ["transferId", "errorCode", "errorMessage"],
+          "additionalProperties": false
+        }
+      },
+      "entryActions": [
+        {
+          "actionId": "errorAction",
+          "name": "Handle Error",
+          "description": "Notify relevant parties about the error and log the details.",
+          "trigger": {
+            "webhook": {
+              "url": "http://example.com/error",
+              "method": "POST",
+              "payload": {
+                "transferId": "$data.transferId",
+                "status": "error",
+                "errorMessage": "$data.errorMessage"
+              }
+            }
+          }
+        }
+      ]
+    }
+  ],
+  "transitions": [
+    {
+      "transitionId": "initToVerify",
+      "fromStateId": "init",
+      "toStateId": "verify",
+      "event": [
+        {
+          "eventId": "startTransfer",
+          "name": "Start Transfer",
+          "description": "Trigger to start the transfer process.",
+          "trigger": "manual"
+        }
+      ],
+      "condition": "true"
+    },
+    {
+      "transitionId": "verifyToProcess",
+      "fromStateId": "verify",
+      "toStateId": "process",
+      "event": [
+        {
+          "eventId": "verificationComplete",
+          "name": "Verification Complete",
+          "description": "Trigger when verification is complete and successful.",
+          "trigger": "manual"
+        }
+      ],
+      "condition": "data.amount > 0"
+    },
+    {
+      "transitionId": "processToComplete",
+      "fromStateId": "process",
+      "toStateId": "complete",
+      "event": [
+        {
+          "eventId": "processComplete",
+          "name": "Processing Complete",
+          "description": "Trigger when processing is complete and successful.",
+          "trigger": "manual"
+        }
+      ],
+      "condition": "true"
+    },
+    {
+      "transitionId": "anyToError",
+      "fromStateId": ["init", "verify", "process"],
+      "toStateId": "error",
+      "event": [
+        {
+          "eventId": "errorOccurred",
+          "name": "Error Occurred",
+          "description": "Trigger when any error occurs.",
+          "trigger": "manual"
+        }
+      ],
+      "condition": "true"
+    }
+  ]
+}
